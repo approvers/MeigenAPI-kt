@@ -1,21 +1,59 @@
-import graphql.TestMeigenDatabase
-import graphql.schema
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.routing.routing
-import io.ktor.routing.get
-import io.ktor.application.call
-import io.ktor.response.respondText
-import ktor.graphql.graphQL
+import kotlinx.coroutines.runBlocking
 
-fun main() {
-    embeddedServer(Netty, port = 8080) {
-        routing {
-            get("/") {
-                call.respondText("Hello, World!")
-            }
+data class Meigen(
+    val id: Int,
+    val author: String,
+    val content: String
+)
 
-            graphQL("/graphql", schema(TestMeigenDatabase()))
-        }
-    }.start(wait = true)
+interface MeigenRepository {
+    suspend fun getById(id: Int): Meigen?
+}
+
+interface MeigenPresentor {
+    suspend fun done(meigen: Meigen?)
+}
+
+interface GetByIdUseCase {
+    suspend fun handle(id: Int)
+}
+
+class Controller(val useCase: GetByIdUseCase) {
+    suspend fun getById(id: Int) = this.useCase.handle(id)
+}
+
+class MemoryMeigenRepository : MeigenRepository {
+    val list: MutableList<Meigen> = mutableListOf()
+
+    override suspend fun getById(id: Int): Meigen? = list.filter { it.id == id }.singleOrNull()
+}
+
+class ConsoleMeigenPresentor : MeigenPresentor {
+    override suspend fun done(meigen: Meigen?) {
+	if (meigen == null) {
+	    println("そのような名言は見つかりませんでした")
+	} else {
+	    println("No.${meigen.id} ${meigen.author}: ${meigen.content}")
+	}
+    }
+}
+
+class GetByIdInteractor(val repo: MeigenRepository, val pre: MeigenPresentor) : GetByIdUseCase {
+    override suspend fun handle(id: Int) =
+	this.pre.done(this.repo.getById(id))
+}
+
+fun main() = runBlocking {
+    while (true) {
+        println("取得したい名言のIDを入力してください")
+
+        val input = readLine()!!.toInt()
+
+	Controller(
+	    GetByIdInteractor(
+		MemoryMeigenRepository(),
+		ConsoleMeigenPresentor(),
+	    ),
+	).getById(input)
+    }
 }
