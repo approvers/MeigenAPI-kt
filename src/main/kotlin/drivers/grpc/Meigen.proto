@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "drivers.grpc";
+option java_outer_classname = "MeigenAPIProto";
+package grpc;
+
+service MeigenAPI {
+    rpc GetByID(GetByIDRequest) returns (GetByIDResponse) {}
+}
+
+message GetByIDRequest {
+    int32 id = 1;
+}
+
+message GetByIDResponse {
+     bool found = 1;
+     Meigen meigen = 2;
+}
+
+message Meigen {
+    int32 id = 1;
+    string author = 2;
+    string content = 3;
+}
